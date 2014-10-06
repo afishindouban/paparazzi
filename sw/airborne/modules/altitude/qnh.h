@@ -29,7 +29,7 @@
 
 struct qnh_struct
 {
-  float qnh;           ///< Barometric pressure adjusted to sea level in Pa
+  float qnh;           ///< Barometric pressure adjusted to sea level in hPa
   float amsl_baro;     ///< AMSL (Altitude AboveMeanSeaLevel) from baro in feet
   float amsl_gps;      ///< AMSL (Altitude AboveMeanSeaLevel) from GPS in feet
   float baro_pressure; ///< Pressure reported by baro in Pa
