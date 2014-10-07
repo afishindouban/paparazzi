@@ -42,20 +42,29 @@ extern "C" {
 #include <math.h>
 
 // Standard Atmosphere constants
+/** ISA sea level standard atmospheric pressure in Pascal */
 #define PPRZ_ISA_SEA_LEVEL_PRESSURE 101325.0
+/** ISA sea level standard temperature in Kelvin */
 #define PPRZ_ISA_SEA_LEVEL_TEMP 288.15
+/** temperature laps rate in K/m */
 #define PPRZ_ISA_TEMP_LAPS_RATE 0.0065
+/** earth-surface gravitational acceleration in m/s^2 */
 #define PPRZ_ISA_GRAVITY 9.80665
-#define PPRZ_ISA_AIR_GAS_CONSTANT (8.31447/0.0289644)
+/** universal gas constant in J/(mol*K) */
+#define PPRZ_ISA_GAS_CONSTANT 8.31447
+/** molar mass of dry air in kg/mol */
+#define PPRZ_ISA_MOLAR_MASS 0.0289644
+/** universal gas constant / molar mass of dry air in J*kg/K */
+#define PPRZ_ISA_AIR_GAS_CONSTANT (PPRZ_ISA_GAS_CONSTANT/PPRZ_ISA_MOLAR_MASS)
 
-static const float PPRZ_ISA_M_OF_P_CONST = (PPRZ_ISA_AIR_GAS_CONSTANT* PPRZ_ISA_SEA_LEVEL_TEMP / PPRZ_ISA_GRAVITY);
+static const float PPRZ_ISA_M_OF_P_CONST = (PPRZ_ISA_AIR_GAS_CONSTANT * PPRZ_ISA_SEA_LEVEL_TEMP / PPRZ_ISA_GRAVITY);
 
 /**
  * Get absolute altitude from pressure (using simplified equation).
  * Referrence pressure is standard pressure at sea level
  *
  * @param pressure current pressure in Pascal (Pa)
- * @return altitude in pressure in ISA conditions
+ * @return altitude in m in ISA conditions
  */
 static inline float pprz_isa_altitude_of_pressure(float pressure)
 {
@@ -71,7 +80,7 @@ static inline float pprz_isa_altitude_of_pressure(float pressure)
  *
  * @param pressure current pressure in Pascal (Pa)
  * @param ref reference pressure (QFE) when height = 0
- * @return altitude in pressure in ISA conditions
+ * @return altitude in m in ISA conditions
  */
 static inline float pprz_isa_height_of_pressure(float pressure, float ref)
 {
@@ -103,6 +112,60 @@ static inline float pprz_isa_pressure_of_altitude(float altitude)
 static inline float pprz_isa_pressure_of_height(float altitude, float ref)
 {
   return (ref * expf((-1. / PPRZ_ISA_M_OF_P_CONST) * altitude));
+}
+
+
+/**
+ * Get absolute altitude from pressure and QNH (using simplified equation).
+ * Referrence pressure is QNH (pressure at sea level).
+ *
+ * @param pressure current pressure in Pascal (Pa)
+ * @param qnh pressure at sea level in hPa
+ * @return altitude in m in ISA conditions
+ */
+static inline float pprz_isa_altitude_of_pressure_qnh(float pressure, float qnh)
+{
+  if (pressure > 0.) {
+    return (PPRZ_ISA_M_OF_P_CONST * logf(qnh * 100.0f / pressure));
+  } else {
+    return 0.;
+  }
+}
+
+/**
+ * Get absolute altitude from pressure and QNH (using full equation).
+ * Referrence pressure is QNH (pressure at sea level).
+ *
+ * @param pressure current pressure in Pascal (Pa)
+ * @param qnh pressure at sea level in hPa
+ * @return altitude in m in ISA conditions
+ */
+static inline float pprz_isa_altitude_of_pressure_qnh_full(float pressure, float qnh)
+{
+  if (qnh > 0.) {
+    const float prel = pressure / (qnh * 100.0f);
+    const float inv_expo = PPRZ_ISA_GAS_CONSTANT * PPRZ_ISA_TEMP_LAPS_RATE /
+      PPRZ_ISA_GRAVITY / PPRZ_ISA_MOLAR_MASS;
+    return (1 - powf(prel, inv_expo)) * PPRZ_ISA_SEA_LEVEL_TEMP / PPRZ_ISA_TEMP_LAPS_RATE;
+  } else {
+    return 0.;
+  }
+}
+
+/**
+ * Get QNH from current pressure and altitude (using full equation).
+ *
+ * @param pressure current pressure in Pascal (Pa)
+ * @param alt altitude in m in ISA conditions
+ * @return qnh pressure at sea level in hPa
+ */
+static inline float pprz_isa_qnh_of_pressure(float pressure, float alt)
+{
+  //  Trel = 1 - L*h/T0;
+  const float Trel = 1.0 - PPRZ_ISA_TEMP_LAPS_RATE * alt / PPRZ_ISA_SEA_LEVEL_TEMP;
+  const float expo = PPRZ_ISA_GRAVITY * PPRZ_ISA_MOLAR_MASS / PPRZ_ISA_GAS_CONSTANT /
+    PPRZ_ISA_TEMP_LAPS_RATE;
+  return pressure / pow(Trel, expo) / 100.0f;
 }
 
 #ifdef __cplusplus
