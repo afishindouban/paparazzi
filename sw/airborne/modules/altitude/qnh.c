@@ -43,7 +43,7 @@ void received_abs_baro_for_qnh(__attribute__((__unused__)) uint8_t sender_id, co
 {
   qnh.baro_pressure = *pressure;
   const float MeterPerFeet = 0.3048;
-  qnh.amsl_baro = pprz_isa_altitude_of_pressure_qnh_full(qnh.baro_pressure, qnh.qnh) /
+  qnh.amsl_baro = pprz_isa_height_of_pressure_full(qnh.baro_pressure, qnh.qnh * 100.0f) /
     MeterPerFeet;
   qnh.baro_counter = 10;
 }
@@ -72,7 +72,7 @@ void init_qnh(void) {
 
 void compute_qnh(void)
 {
-  qnh.qnh = pprz_isa_qnh_of_pressure(qnh.baro_pressure, h);
+  qnh.qnh = pprz_isa_ref_pressure_of_height_full(qnh.baro_pressure, h) / 100.0f;
 }
 
 float GetAmsl(void)

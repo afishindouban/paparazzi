@@ -77,15 +77,19 @@ static inline float pprz_isa_altitude_of_pressure(float pressure)
 
 /**
  * Get relative altitude from pressure (using simplified equation).
+ * Given the current pressure and a reference pressure (at height=0),
+ * calculate the height above the reference in meters.
+ * If you pass QNH as reference pressure, you get the height above sea level.
+ * Using QFE as reference pressure, you get height above the airfield.
  *
  * @param pressure current pressure in Pascal (Pa)
- * @param ref reference pressure (QFE) when height = 0
- * @return altitude in m in ISA conditions
+ * @param ref_p reference pressure (QFE) when height=0 or QNH at sea level
+ * @return height in m above reference in ISA conditions
  */
-static inline float pprz_isa_height_of_pressure(float pressure, float ref)
+static inline float pprz_isa_height_of_pressure(float pressure, float ref_p)
 {
-  if (pressure > 0. && ref > 0.) {
-    return (PPRZ_ISA_M_OF_P_CONST * logf(ref / pressure));
+  if (pressure > 0. && ref_p > 0.) {
+    return (PPRZ_ISA_M_OF_P_CONST * logf(ref_p / pressure));
   } else {
     return 0.;
   }
@@ -95,7 +99,7 @@ static inline float pprz_isa_height_of_pressure(float pressure, float ref)
  * Get pressure in Pa from absolute altitude (using simplified equation).
  *
  * @param altitude current absolute altitude in meters
- * @return static pressure in Pa in ISA conditions
+ * @return static pressure in Pa at given altitude in ISA conditions
  */
 static inline float pprz_isa_pressure_of_altitude(float altitude)
 {
@@ -105,45 +109,31 @@ static inline float pprz_isa_pressure_of_altitude(float altitude)
 /**
  * Get pressure in Pa from height (using simplified equation).
  *
- * @param altitude current relative altitude in meters
- * @param ref reference pressure (QFE) when height = 0
- * @return static pressure in Pa in ISA conditions
+ * @param height current height over reference (relative altitude) in meters
+ * @param ref_p reference pressure (QFE or QNH) when height = 0
+ * @return static pressure in Pa at given height in ISA conditions
  */
-static inline float pprz_isa_pressure_of_height(float altitude, float ref)
+static inline float pprz_isa_pressure_of_height(float height, float ref_p)
 {
-  return (ref * expf((-1. / PPRZ_ISA_M_OF_P_CONST) * altitude));
+  return (ref_p * expf((-1. / PPRZ_ISA_M_OF_P_CONST) * height));
 }
 
 
 /**
- * Get absolute altitude from pressure and QNH (using simplified equation).
- * Referrence pressure is QNH (pressure at sea level).
+ * Get relative altitude from pressure (using full equation).
+ * Given the current pressure and a reference pressure (at height=0),
+ * calculate the height above the reference in meters.
+ * If you pass QNH as reference pressure, you get the height above sea level.
+ * Using QFE as reference pressure, you get height above the airfield.
  *
  * @param pressure current pressure in Pascal (Pa)
- * @param qnh pressure at sea level in hPa
- * @return altitude in m in ISA conditions
+ * @param ref_p reference pressure (QFE or QNH) in Pa
+ * @return height above reference in m in ISA conditions
  */
-static inline float pprz_isa_altitude_of_pressure_qnh(float pressure, float qnh)
+static inline float pprz_isa_height_of_pressure_full(float pressure, float ref_p)
 {
-  if (pressure > 0.) {
-    return (PPRZ_ISA_M_OF_P_CONST * logf(qnh * 100.0f / pressure));
-  } else {
-    return 0.;
-  }
-}
-
-/**
- * Get absolute altitude from pressure and QNH (using full equation).
- * Referrence pressure is QNH (pressure at sea level).
- *
- * @param pressure current pressure in Pascal (Pa)
- * @param qnh pressure at sea level in hPa
- * @return altitude in m in ISA conditions
- */
-static inline float pprz_isa_altitude_of_pressure_qnh_full(float pressure, float qnh)
-{
-  if (qnh > 0.) {
-    const float prel = pressure / (qnh * 100.0f);
+  if (ref_p > 0.) {
+    const float prel = pressure / ref_p;
     const float inv_expo = PPRZ_ISA_GAS_CONSTANT * PPRZ_ISA_TEMP_LAPS_RATE /
       PPRZ_ISA_GRAVITY / PPRZ_ISA_MOLAR_MASS;
     return (1 - powf(prel, inv_expo)) * PPRZ_ISA_SEA_LEVEL_TEMP / PPRZ_ISA_TEMP_LAPS_RATE;
@@ -153,19 +143,20 @@ static inline float pprz_isa_altitude_of_pressure_qnh_full(float pressure, float
 }
 
 /**
- * Get QNH from current pressure and altitude (using full equation).
+ * Get reference pressure (QFE or QNH) from current pressure and height.
+ * (using full equation)
  *
  * @param pressure current pressure in Pascal (Pa)
- * @param alt altitude in m in ISA conditions
- * @return qnh pressure at sea level in hPa
+ * @param height height above referece (sea level for QNH, airfield alt for QFE) in m
+ * @return reference pressure at height=0 in Pa
  */
-static inline float pprz_isa_qnh_of_pressure(float pressure, float alt)
+static inline float pprz_isa_ref_pressure_of_height_full(float pressure, float alt)
 {
   //  Trel = 1 - L*h/T0;
   const float Trel = 1.0 - PPRZ_ISA_TEMP_LAPS_RATE * alt / PPRZ_ISA_SEA_LEVEL_TEMP;
   const float expo = PPRZ_ISA_GRAVITY * PPRZ_ISA_MOLAR_MASS / PPRZ_ISA_GAS_CONSTANT /
     PPRZ_ISA_TEMP_LAPS_RATE;
-  return pressure / pow(Trel, expo) / 100.0f;
+  return pressure / pow(Trel, expo);
 }
 
 #ifdef __cplusplus
